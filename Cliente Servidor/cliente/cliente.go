@@ -91,7 +91,8 @@ func main(){
 				fmt.Println("Debe suscribirse al menos a un canal")
 			}
 		case 0:
-			fmt.Println("Gracias por usar este programa para transmitir datos!")
+			p:=Peticiones{Peticion:0}
+			enviarDatos(c,p,"Gracias por usar este programa para transmitir datos!")
 			return
 		default:
 			fmt.Println("Opción no valida, digite un valor válido por favor.")

@@ -33,13 +33,14 @@ func check(sms string, err error){
 }
 
 var listCanales = []int{1,2,3,4}//los canales disponibles disponibles a los que se puede suscribir un cliente
-var contar=0 					//Contador que me indicará el tamaño del canal
+var contarO=0					//Contador que me indicará el tamaño del canal
 var auxP = Person{}
 
 func main(){
 	//Creo el canal clientJobs quien administrará el envío y recepción de archivos de los clientes
 	clientJobs := make(chan ClienteJob)
-	go generarRespuesta(clientJobs)//Hilo que administrará el envío de los archivos
+	clientGet := make(chan ClienteJob) 
+	go generarRespuesta(clientJobs,clientGet)//Hilo que administrará el envío de los archivos
 	
 	//Habilito la dirección local y el puerto para la conexión de los clientes con el servidor
 	v:= &net.TCPAddr{IP: net.IPv4(127,0,0,1), Port:20}
@@ -72,12 +73,12 @@ func main(){
 					conn.Write(enc)
 				case 3:
 					//aquí agrego al canal los clientes que envían archivos
-					contar++
+					//contarI++
 					clientJobs <- ClienteJob{"enviar",conn,p}
 				case 4:
 					//aquí agrego al canal los clientes que envían archivos
-					contar++
-					clientJobs <- ClienteJob{"recibir",conn,p}
+					contarO++
+					clientGet <- ClienteJob{"recibir",conn,p}
 				case 0:
 					//Cierro la conexión del cliente cuando la solicita
 					log.Println("Cliente desconectado")
@@ -92,6 +93,45 @@ func main(){
 	}
 }
 
+func enviarArchivo(p Person, clientGet chan ClienteJob){
+	clientAux:=clientGet
+	for i := 0; i < contarO; i++ {
+		res:=<-clientAux
+		canalAux:=res.Datos.Suscripcion //obtengo los canales de los clientes que reciben
+		sacar:=false
+		for _,v := range p.Suscripcion{
+			for _,v2 :=range canalAux{
+				if v==v2{
+					//en caso que al menos uno de los canales del cliente que envía y 
+					//el cliente que recibe son los mismos
+					//asigno el archivo y su formato al receptor, y los encripto para enviar
+					res.Datos.Archivo = p.Archivo
+					res.Datos.FormatoArch = p.FormatoArch
+					enc,errr:=json.Marshal(res.Datos)
+					if errr != nil {
+						log.Println(errr)
+					}
+					res.Conn.Write(enc)
+					sacar=true
+					break
+				}
+			}
+			if sacar{break}
+		}
+	}
+	contarO=0
+}
+
+func generarRespuesta(clientJobs chan ClienteJob,  clientGet chan ClienteJob){
+	for{
+		res:=<-clientJobs //leo el dato que ingresa al canal
+		if res.Datos.Archivo!=nil { //verifico que el archivo que envien no sea nulo
+			//envío los datos ingresados del cliente que envía y mando el canal de los clientes que resiven
+			enviarArchivo(res.Datos, clientGet)
+		}
+	}
+}
+/*
 func generarRespuesta(clientJobs chan ClienteJob){
 	for{ 
 		for i:=0;i<contar;i++{
@@ -146,7 +186,7 @@ func generarRespuesta(clientJobs chan ClienteJob){
 				contar=0
 			}
 			*/
-		}
+	/*	}
 	}
 	
-}
+}*/
